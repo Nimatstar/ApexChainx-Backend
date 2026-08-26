@@ -64,8 +64,13 @@ class CorrelationMiddleware:
                         route_template = getattr(route, "path", None)
 
                 try:
-                    if hasattr(request.state, "user") and request.state.user:
-                        uid = str(getattr(request.state.user, "id", ""))
+                    actor = getattr(request.state, "actor", None)
+                    if actor:
+                        uid = str(
+                            actor.get("actor_id", "")
+                            if isinstance(actor, dict)
+                            else getattr(actor, "id", "")
+                        )
                         if uid:
                             user_id_hash = _hash_value(uid)
                 except (AttributeError, TypeError, ValueError):

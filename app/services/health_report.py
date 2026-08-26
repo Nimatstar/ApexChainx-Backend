@@ -9,12 +9,19 @@ from redis import Redis
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
+from app.core.db_retry import run_with_db_retry
+
 
 @dataclass
 class ComponentStatus:
     component: str
     status: str  # ok, warn, down
     details: dict
+
+
+def _execute_db_ping(engine: Engine) -> None:
+    with engine.connect() as conn:
+        conn.execute(text("SELECT 1"))
 
 
 def _pool_status(engine: Engine) -> ComponentStatus:
@@ -42,8 +49,7 @@ def _pool_status(engine: Engine) -> ComponentStatus:
 def _db_ping(engine: Engine) -> ComponentStatus:
     start = time.monotonic()
     try:
-        with engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
+        run_with_db_retry(lambda: _execute_db_ping(engine))
         elapsed_ms = round((time.monotonic() - start) * 1000, 2)
         return ComponentStatus("database", "ok", {"latency_ms": elapsed_ms})
     except Exception as exc:
